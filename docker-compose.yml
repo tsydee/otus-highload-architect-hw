@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - 5556:5432
+    tmpfs:
+      - /db
+    environment:
+      - PGDATA=/db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=social
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  apply-migration:
+    image: migrations-otus-ha
+    build:
+      context: .
+      dockerfile: scripts/migration.Dockerfile
+    environment:
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: "host=postgres user=postgres password=password dbname=social sslmode=disable"
+    command: "/opt/bin/goose -dir /opt/go/app/db/migrations up"
+    depends_on:
+      postgres:
+        condition: service_healthy
